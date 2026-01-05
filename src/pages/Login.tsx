@@ -1,39 +1,55 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth, UserRole } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { GraduationCap, Users, AlertCircle, Shield } from 'lucide-react';
+import { GraduationCap, Users, AlertCircle, Shield, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
 
 const Login = () => {
   const navigate = useNavigate();
-  const { login, isAuthenticated, user } = useAuth();
+  const { login, isAuthenticated, user, loading: authLoading } = useAuth();
   const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Redirect if already authenticated
-  if (isAuthenticated && user) {
-    const redirectPath = user.role === 'teacher' ? '/dashboard' : '/student-dashboard';
-    navigate(redirectPath, { replace: true });
+  // Redirect if already authenticated (but only if we have user data)
+  // This hook MUST be called before any conditional returns
+  useEffect(() => {
+    if (!authLoading && isAuthenticated && user) {
+      const redirectPath = user.role === 'teacher' ? '/dashboard' : '/student-dashboard';
+      navigate(redirectPath, { replace: true });
+    }
+  }, [authLoading, isAuthenticated, user, navigate]);
+
+  // Show loading state while checking auth
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-4"></div>
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Don't render login form if already authenticated
+  if (!authLoading && isAuthenticated && user) {
     return null;
   }
 
   const handleRoleSelect = (role: UserRole) => {
     setSelectedRole(role);
     setError('');
-    // Pre-fill demo credentials
-    if (role === 'teacher') {
-      setEmail('teacher@dropoutguard.edu');
-    } else {
-      setEmail('marcus.chen@university.edu');
-    }
-    setPassword('demo123');
+    // Clear fields - no pre-filling
+    setEmail('');
+    setPassword('');
   };
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -49,11 +65,25 @@ const Login = () => {
         toast.success(`Welcome! Logged in as ${selectedRole}`);
         const redirectPath = selectedRole === 'teacher' ? '/dashboard' : '/student-dashboard';
         navigate(redirectPath, { replace: true });
-      } else {
-        setError('Invalid credentials. Please try again.');
       }
-    } catch {
-      setError('Login failed. Please try again.');
+    } catch (err: any) {
+      console.error('Login error:', err);
+      // Check for Firebase error codes
+      if (err.code === 'auth/user-not-found' || err.message?.includes('user-not-found')) {
+        setError('No account found with this email address. Please check your email or create an account.');
+      } else if (err.code === 'auth/wrong-password' || err.message?.includes('wrong-password')) {
+        setError('Incorrect password. Please try again.');
+      } else if (err.code === 'auth/invalid-email' || err.message?.includes('invalid-email')) {
+        setError('Invalid email address format.');
+      } else if (err.code === 'auth/invalid-credential') {
+        setError('Invalid email or password. Please check your credentials.');
+      } else if (err.message === 'role-mismatch' || err.message?.includes('role')) {
+        setError('This account does not match the selected role. Please select the correct role.');
+      } else if (err.message?.includes('User data not found')) {
+        setError('User account found but data is missing. Please contact support.');
+      } else {
+        setError(err.message || 'Login failed. Please check your credentials and try again.');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -143,14 +173,29 @@ const Login = () => {
 
                 <div className="space-y-2">
                   <Label htmlFor="password">Password</Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    placeholder="Enter your password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                  />
+                  <div className="relative">
+                    <Input
+                      id="password"
+                      type={showPassword ? 'text' : 'password'}
+                      placeholder="Enter your password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                      className="pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                      aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
                 </div>
 
                 <Button type="submit" className="w-full" disabled={isLoading}>
@@ -172,7 +217,7 @@ const Login = () => {
                 </Button>
 
                 <p className="text-xs text-center text-muted-foreground mt-4">
-                  Demo mode: Any password (4+ chars) works
+                  Use your Firebase authenticated credentials
                 </p>
               </form>
             </CardContent>

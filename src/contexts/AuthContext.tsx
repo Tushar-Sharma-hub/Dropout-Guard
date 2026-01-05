@@ -1,5 +1,9 @@
-import { createContext, useContext, useState, ReactNode } from 'react';
-import { Student, mockStudents } from '@/data/mockStudents';
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { onAuthStateChange, signIn as firebaseSignIn, signOutUser as firebaseSignOut, getUserData } from '@/lib/firebase/auth';
+import { getStudentByUserId, getStudent } from '@/lib/firebase/students';
+import { getTeacherByUserId } from '@/lib/firebase/teachers';
+import { FirestoreUser, FirestoreStudent } from '@/types/firebase';
+import type { User as FirebaseUser } from 'firebase/auth';
 
 export type UserRole = 'student' | 'teacher';
 
@@ -7,60 +11,127 @@ export interface User {
   email: string;
   role: UserRole;
   studentId?: string; // Only for students
+  userId: string; // Firebase Auth UID
 }
 
 interface AuthContextType {
   user: User | null;
   login: (email: string, password: string, role: UserRole) => Promise<boolean>;
-  logout: () => void;
+  logout: () => Promise<void>;
   isAuthenticated: boolean;
-  currentStudent: Student | null;
+  currentStudent: FirestoreStudent | null;
+  loading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Mock users for demo
-const mockUsers = {
-  teachers: ['teacher@dropoutguard.edu', 'admin@dropoutguard.edu'],
-  students: mockStudents.map(s => ({ email: s.email, studentId: s.studentId })),
-};
-
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<User | null>(() => {
-    const stored = sessionStorage.getItem('dropoutguard_user');
-    return stored ? JSON.parse(stored) : null;
-  });
+  const [user, setUser] = useState<User | null>(null);
+  const [currentStudent, setCurrentStudent] = useState<FirestoreStudent | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  // Listen to Firebase auth state changes
+  useEffect(() => {
+    let isMounted = true;
+
+    try {
+      const unsubscribe = onAuthStateChange(async (firebaseUser: FirebaseUser | null) => {
+        if (!isMounted) return;
+
+        if (firebaseUser) {
+          try {
+            // Get user data from Firestore
+            const firestoreUser = await getUserData(firebaseUser.uid);
+            if (firestoreUser && isMounted) {
+              const appUser: User = {
+                email: firestoreUser.email,
+                role: firestoreUser.role as UserRole,
+                userId: firebaseUser.uid,
+                studentId: firestoreUser.studentId,
+              };
+              setUser(appUser);
+
+              // Load student data if user is a student
+              if (firestoreUser.role === 'student' && firestoreUser.studentId) {
+                const student = await getStudent(firestoreUser.studentId);
+                if (isMounted) {
+                  setCurrentStudent(student);
+                }
+              } else {
+                setCurrentStudent(null);
+              }
+            }
+          } catch (error) {
+            console.error('Error loading user data:', error);
+            if (isMounted) {
+              setUser(null);
+              setCurrentStudent(null);
+            }
+          }
+        } else {
+          if (isMounted) {
+            setUser(null);
+            setCurrentStudent(null);
+          }
+        }
+        if (isMounted) {
+          setLoading(false);
+        }
+      });
+
+      return () => {
+        isMounted = false;
+        unsubscribe();
+      };
+    } catch (error) {
+      console.error('Error setting up auth listener:', error);
+      setLoading(false);
+      return () => {
+        isMounted = false;
+      };
+    }
+  }, []);
 
   const login = async (email: string, password: string, role: UserRole): Promise<boolean> => {
-    // Mock authentication - accept any password for demo
-    if (password.length < 4) return false;
-
-    if (role === 'teacher') {
-      // For demo, accept any email with teacher role
-      const newUser: User = { email, role: 'teacher' };
-      setUser(newUser);
-      sessionStorage.setItem('dropoutguard_user', JSON.stringify(newUser));
-      return true;
-    } else {
-      // For students, try to match with mock data or assign first high-risk student for demo
-      const matchedStudent = mockUsers.students.find(s => s.email.toLowerCase() === email.toLowerCase());
-      const studentId = matchedStudent?.studentId || 'STU001'; // Default to first high-risk student for demo
+    try {
+      // Sign in with Firebase
+      const result = await firebaseSignIn(email, password);
       
-      const newUser: User = { email, role: 'student', studentId };
-      setUser(newUser);
-      sessionStorage.setItem('dropoutguard_user', JSON.stringify(newUser));
+      if (!result) {
+        return false;
+      }
+
+      const { firestoreUser } = result;
+
+      // Verify role matches
+      if (firestoreUser.role !== role) {
+        await firebaseSignOut();
+        throw new Error('role-mismatch');
+      }
+
+      // User is set via auth state listener
       return true;
+    } catch (error: any) {
+      console.error('Login error:', error);
+      // Re-throw the error so the Login component can handle it properly
+      throw error;
     }
   };
 
-  const logout = () => {
-    setUser(null);
-    sessionStorage.removeItem('dropoutguard_user');
+  const logout = async (): Promise<void> => {
+    try {
+      // Clear state first to prevent white screen
+      setUser(null);
+      setCurrentStudent(null);
+      // Then sign out from Firebase
+      await firebaseSignOut();
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Even if Firebase sign out fails, clear local state
+      setUser(null);
+      setCurrentStudent(null);
+    }
   };
-
-  const currentStudent = user?.role === 'student' && user.studentId
-    ? mockStudents.find(s => s.studentId === user.studentId) || null
-    : null;
 
   return (
     <AuthContext.Provider value={{
@@ -69,6 +140,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       logout,
       isAuthenticated: !!user,
       currentStudent,
+      loading,
     }}>
       {children}
     </AuthContext.Provider>

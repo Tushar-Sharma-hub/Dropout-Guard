@@ -15,11 +15,42 @@ import {
   Target
 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
-import { generateRecoveryPlan } from '@/data/mockStudents';
+import { getRecoveryPlanByStudentId } from '@/lib/firebase/recoveryPlans';
+import { useEffect, useState } from 'react';
+import { FirestoreRecoveryPlan } from '@/types/firebase';
 
 const StudentDashboard = () => {
   const navigate = useNavigate();
-  const { currentStudent, logout, user } = useAuth();
+  const { currentStudent, logout, user, loading } = useAuth();
+  const [recoveryPlan, setRecoveryPlan] = useState<FirestoreRecoveryPlan | null>(null);
+  const [loadingPlan, setLoadingPlan] = useState(true);
+
+  useEffect(() => {
+    if (currentStudent?.studentId) {
+      getRecoveryPlanByStudentId(currentStudent.studentId)
+        .then((plan) => {
+          setRecoveryPlan(plan);
+          setLoadingPlan(false);
+        })
+        .catch((error) => {
+          console.error('Error loading recovery plan:', error);
+          setLoadingPlan(false);
+        });
+    } else {
+      setLoadingPlan(false);
+    }
+  }, [currentStudent]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-4"></div>
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!currentStudent) {
     return (
@@ -29,22 +60,31 @@ const StudentDashboard = () => {
     );
   }
 
-  const recoveryPlan = generateRecoveryPlan(currentStudent);
-  const avgQuizScore = Math.round(
-    currentStudent.quizScores.reduce((a, b) => a + b, 0) / currentStudent.quizScores.length
-  );
-  const assignmentCompletion = Math.round(
-    (currentStudent.assignmentsSubmitted / currentStudent.totalAssignments) * 100
-  );
+  const avgQuizScore = currentStudent.quizScores.length > 0
+    ? Math.round(
+        currentStudent.quizScores.reduce((a, b) => a + b, 0) / currentStudent.quizScores.length
+      )
+    : 0;
+  const assignmentCompletion = currentStudent.totalAssignments > 0
+    ? Math.round(
+        (currentStudent.assignmentsSubmitted / currentStudent.totalAssignments) * 100
+      )
+    : 0;
 
   const quizChartData = currentStudent.quizScores.slice(-6).map((score, index) => ({
     quiz: `Q${index + 1}`,
     score,
   }));
 
-  const handleLogout = () => {
-    logout();
-    navigate('/', { replace: true });
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate('/', { replace: true });
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Still navigate even if logout fails
+      navigate('/', { replace: true });
+    }
   };
 
   return (
@@ -232,8 +272,14 @@ const StudentDashboard = () => {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid gap-3">
-              {recoveryPlan.weakTopics.slice(0, 2).map((topic, index) => (
+            {loadingPlan ? (
+              <div className="text-center py-4">
+                <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-primary mb-2"></div>
+                <p className="text-sm text-muted-foreground">Loading recovery plan...</p>
+              </div>
+            ) : recoveryPlan ? (
+              <div className="grid gap-3">
+                {recoveryPlan.weakTopics.slice(0, 2).map((topic, index) => (
                 <div 
                   key={index}
                   className="flex items-center gap-3 p-3 rounded-lg bg-card border"
@@ -244,33 +290,49 @@ const StudentDashboard = () => {
                   <div>
                     <p className="font-medium">{topic}</p>
                     <p className="text-xs text-muted-foreground">
-                      Recommended: {recoveryPlan.dailyStudyHours / 2} hours today
+                      Recommended: {recoveryPlan ? recoveryPlan.dailyStudyHours / 2 : 2} hours today
                     </p>
                   </div>
                 </div>
               ))}
-            </div>
+              </div>
+            ) : (
+              <div className="text-center py-4">
+                <p className="text-sm text-muted-foreground mb-3">No recovery plan available yet.</p>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => navigate(`/student/${currentStudent.studentId}/recovery`)}
+                >
+                  Generate Recovery Plan
+                </Button>
+              </div>
+            )}
             
-            <div className="flex items-center justify-between p-3 rounded-lg bg-card border">
-              <div>
-                <p className="font-medium">Today's Study Goal</p>
-                <p className="text-sm text-muted-foreground">
-                  Complete {recoveryPlan.dailyStudyHours} hours of focused study
-                </p>
-              </div>
-              <div className="text-2xl font-bold text-primary">
-                {recoveryPlan.dailyStudyHours}h
-              </div>
-            </div>
+            {recoveryPlan && (
+              <>
+                <div className="flex items-center justify-between p-3 rounded-lg bg-card border">
+                  <div>
+                    <p className="font-medium">Today's Study Goal</p>
+                    <p className="text-sm text-muted-foreground">
+                      Complete {recoveryPlan.dailyStudyHours} hours of focused study
+                    </p>
+                  </div>
+                  <div className="text-2xl font-bold text-primary">
+                    {recoveryPlan.dailyStudyHours}h
+                  </div>
+                </div>
 
-            <Button 
-              variant="outline" 
-              className="w-full"
-              onClick={() => navigate(`/student/${currentStudent.studentId}/recovery`)}
-            >
-              View Full Recovery Plan
-              <ArrowRight className="w-4 h-4 ml-2" />
-            </Button>
+                <Button 
+                  variant="outline" 
+                  className="w-full"
+                  onClick={() => navigate(`/student/${currentStudent.studentId}/recovery`)}
+                >
+                  View Full Recovery Plan
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </Button>
+              </>
+            )}
           </CardContent>
         </Card>
       </main>
