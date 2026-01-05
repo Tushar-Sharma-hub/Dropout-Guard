@@ -1,73 +1,110 @@
-# Welcome to your dropoutguard project
+============================================================
+                    DROPOUTGUARD
+      AI Powered Student Dropout Prevention Platform
+============================================================
 
-## Project info
+LIVE DEMO: https://dropout-guard.vercel.app/
 
-**URL**: https://dropoutguard.dev/projects/REPLACE_WITH_PROJECT_ID
+------------------------------------------------------------
+LOGIN CREDENTIALS
+------------------------------------------------------------
 
-## How can I edit this code?
+TEACHER
+Email    : teacher@dropoutguard.edu
+Password : teacher123
 
-There are several ways of editing your application.
+STUDENT
+Email    : marcus.chen@university.edu
+Password : student123
 
-**Use dropoutguard**
+------------------------------------------------------------
+PROBLEM STATEMENT
+------------------------------------------------------------
 
-Simply visit the [dropoutguard Project](https://dropoutguard.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+Many students silently fall behind due to:
+- Poor attendance
+- Weak academic fundamentals
+- Low engagement
 
-Changes made via dropoutguard will be committed automatically to this repo.
+Teachers usually identify the issue only after students start
+failing or dropping out, when recovery becomes very difficult.
 
-**Use your preferred IDE**
+There is no intelligent early-warning system that predicts
+risk early and provides clear recovery guidance.
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in dropoutguard.
+------------------------------------------------------------
+SOLUTION
+------------------------------------------------------------
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+DropoutGuard is an AI-assisted early warning system that:
 
-Follow these steps:
+- Monitors academic and engagement data
+- Predicts dropout / failure risk
+- Classifies students as Low / Medium / High risk
+- Generates personalized recovery plans
+- Enables early teacher intervention
+- Enables student self-improvement dashboards
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+------------------------------------------------------------
+KEY FEATURES
+------------------------------------------------------------
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+- Role based login (Teacher / Student)
+- Visual risk dashboards
+- Attendance, quiz and engagement tracking
+- AI powered recovery plans
+- Firebase authentication and database
+- Cloud ready scalable architecture
 
-# Step 3: Install the necessary dependencies.
-npm i
+------------------------------------------------------------
+SYSTEM ARCHITECTURE
+------------------------------------------------------------
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
+Frontend (React)
+        |
+        v
+Firebase Authentication
+        |
+        v
+Firestore Database
+        |
+        v
+Gemini AI Engine
+        |
+        v
+Recovery Plan Generator
+        |
+        v
+Teacher & Student Dashboards
 
-**Edit a file directly in GitHub**
+------------------------------------------------------------
+TECH STACK
+------------------------------------------------------------
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+Frontend     : React + Tailwind
+Backend      : Firebase Firestore
+Auth         : Firebase Authentication
+AI Engine    : Google Gemini API
+Hosting      : Vercel
 
-**Use GitHub Codespaces**
+------------------------------------------------------------
+FUTURE ENHANCEMENTS
+------------------------------------------------------------
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+- Full Gemini AI integration
+- Parent dashboards
+- LMS integration
+- Mobile app version
+- Gamified student progress tracking
 
-## What technologies are used for this project?
+------------------------------------------------------------
+TEAM : DOOM
+------------------------------------------------------------
 
-This project is built with:
+Tushar Sharma
+CSE - AIML
+Ramdeobaba College of Engineering
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [dropoutguard](https://dropoutguard.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
-
-## Can I connect a custom domain to my dropoutguard project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.dropoutguard.dev/features/custom-domain#custom-domain)
+============================================================
+"DropoutGuard turns institutions from reactive to predictive."
+============================================================
